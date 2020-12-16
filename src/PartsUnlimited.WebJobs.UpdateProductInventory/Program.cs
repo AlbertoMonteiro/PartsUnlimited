@@ -1,10 +1,9 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
-using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
+using System;
 
 namespace PartsUnlimited.WebJobs.UpdateProductInventory
 {
@@ -30,10 +29,11 @@ namespace PartsUnlimited.WebJobs.UpdateProductInventory
                 return 10;
             }
 
-            var jobHostConfig = new JobHostConfiguration(webjobsConnectionString);
-            var host = new JobHost(jobHostConfig);
+            // todo
+            //var jobHostConfig = new JobHostConfiguration(webjobsConnectionString);
+            //var host = new JobHost(jobHostConfig);
 
-            host.RunAndBlock();
+            //host.RunAndBlock();
             return 0;
         }
     }

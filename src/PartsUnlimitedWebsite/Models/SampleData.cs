@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.PlatformAbstractions;
 using PartsUnlimited.Areas.Admin;
 using System;
 using System.Collections.Generic;
@@ -87,12 +86,12 @@ namespace PartsUnlimited.Models
             }
         }
 
-       /// <summary>
-       /// Returns configuration section for AdminRole.
-       /// </summary>
-       /// <param name="serviceProvider"></param>
-       /// <returns></returns>
-       private static IConfigurationSection GetAdminRoleConfiguration(IServiceProvider serviceProvider)
+        /// <summary>
+        /// Returns configuration section for AdminRole.
+        /// </summary>
+        /// <param name="serviceProvider"></param>
+        /// <returns></returns>
+        private static IConfigurationSection GetAdminRoleConfiguration(IServiceProvider serviceProvider)
         {
             var appEnv = serviceProvider.GetService<IHostingEnvironment>();
 
@@ -124,7 +123,7 @@ namespace PartsUnlimited.Models
         }
 
         /// <summary>
-        /// Generate an enumeration of rainchecks.  The random number generator uses a seed to ensure 
+        /// Generate an enumeration of rainchecks.  The random number generator uses a seed to ensure
         /// that the sequence is consistent, but provides somewhat random looking data.
         /// </summary>
         public static IEnumerable<Raincheck> GetRainchecks(IEnumerable<Store> stores, IList<Product> products)

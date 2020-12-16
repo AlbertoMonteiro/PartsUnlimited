@@ -1,13 +1,12 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore;
 
 namespace PartsUnlimited.Models
 {
@@ -17,11 +16,11 @@ namespace PartsUnlimited.Models
 
         public Startup(IHostingEnvironment env)
         {
-            //Below code demonstrates usage of multiple configuration sources. For instance a setting say 'setting1' is found in both the registered sources, 
+            //Below code demonstrates usage of multiple configuration sources. For instance a setting say 'setting1' is found in both the registered sources,
             //then the later source will win. By this way a Local config can be overridden by a different setting while deployed remotely.
-              var builder = new ConfigurationBuilder()
-                .AddJsonFile("config.json")
-                .AddJsonFile($"config.{env.EnvironmentName}.json", optional: true);
+            var builder = new ConfigurationBuilder()
+              .AddJsonFile("config.json")
+              .AddJsonFile($"config.{env.EnvironmentName}.json", optional: true);
 
             if (env.IsDevelopment())
             {

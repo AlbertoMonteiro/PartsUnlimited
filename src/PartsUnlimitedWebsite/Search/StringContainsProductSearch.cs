@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using Microsoft.EntityFrameworkCore;
 using PartsUnlimited.Models;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,7 +25,7 @@ namespace PartsUnlimited.Search
             var q = _context.Products
                 .Where(p => p.Title.ToLower().Contains(lowercase_query));
 
-            return await q.ToAsyncEnumerable().ToList();
+            return await q.ToListAsync();
         }
     }
 }

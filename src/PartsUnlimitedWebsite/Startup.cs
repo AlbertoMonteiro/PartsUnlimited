@@ -93,7 +93,7 @@ namespace PartsUnlimited
             ContentDeliveryNetworkExtensions.Configuration = new ContentDeliveryNetworkConfiguration(Configuration.GetSection("CDN"));
 
             // Add MVC services to the services container
-            services.AddMvc();
+            services.AddMvc(o => o.EnableEndpointRouting = false).SetCompatibilityVersion(Microsoft.AspNetCore.Mvc.CompatibilityVersion.Version_2_2);
 
             //Add InMemoryCache
             services.AddSingleton<IMemoryCache, MemoryCache>();
@@ -127,7 +127,6 @@ namespace PartsUnlimited
             //Display custom error page in production when error occurs
             //During development use the ErrorPage middleware to display error information in the browser
             app.UseDeveloperExceptionPage();
-            app.UseDatabaseErrorPage();
 
             Configure(app);
         }

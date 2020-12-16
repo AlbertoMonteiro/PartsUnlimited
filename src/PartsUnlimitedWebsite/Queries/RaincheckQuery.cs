@@ -1,13 +1,12 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using Microsoft.EntityFrameworkCore;
 using PartsUnlimited.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore.Extensions.Internal;
 
 namespace PartsUnlimited.Queries
 {
@@ -22,19 +21,18 @@ namespace PartsUnlimited.Queries
 
         public async Task<IEnumerable<Raincheck>> GetAllAsync()
         {
-            var rainchecks = await _context.RainChecks.AsAsyncEnumerable().ToList();
-
-            foreach (var raincheck in rainchecks)
+            var rainchecks = new List<Raincheck>();
+            await foreach (var raincheck in _context.RainChecks.AsAsyncEnumerable())
             {
                 await FillRaincheckValuesAsync(raincheck);
+                rainchecks.Add(raincheck);
             }
-
             return rainchecks;
         }
 
         public async Task<Raincheck> FindAsync(int id)
         {
-            var raincheck = await _context.RainChecks.AsAsyncEnumerable().FirstOrDefault(r => r.RaincheckId == id);
+            var raincheck = await _context.RainChecks.FirstOrDefaultAsync();
 
             if (raincheck == null)
             {
@@ -60,9 +58,9 @@ namespace PartsUnlimited.Queries
         /// </summary>
         private async Task FillRaincheckValuesAsync(Raincheck raincheck)
         {
-            raincheck.IssuerStore = await _context.Stores.AsAsyncEnumerable().First(s => s.StoreId == raincheck.StoreId);
-            raincheck.Product = await _context.Products.AsAsyncEnumerable().First(p => p.ProductId == raincheck.ProductId);
-            raincheck.Product.Category = await _context.Categories.AsAsyncEnumerable().First(c => c.CategoryId == raincheck.Product.CategoryId);
+            raincheck.IssuerStore = await _context.Stores.FirstAsync(s => s.StoreId == raincheck.StoreId);
+            raincheck.Product = await _context.Products.FirstAsync(p => p.ProductId == raincheck.ProductId);
+            raincheck.Product.Category = await _context.Categories.FirstAsync(c => c.CategoryId == raincheck.Product.CategoryId);
         }
     }
 }

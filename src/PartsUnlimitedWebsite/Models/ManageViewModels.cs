@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Collections.Generic;

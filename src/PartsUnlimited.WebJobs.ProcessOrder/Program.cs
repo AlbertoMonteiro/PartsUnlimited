@@ -1,17 +1,16 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
-using System.Linq;
-using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
+using System;
+using System.Threading.Tasks;
 
 namespace PartsUnlimited.WebJobs.ProcessOrder
 {
     public class Program
     {
-        public int Main(string[] args)
+        public async Task<int> Main(string[] args)
         {
             var builder = new ConfigurationBuilder();
             builder.Add(new JsonConfigurationSource { Path = "config.json" });
@@ -30,11 +29,11 @@ namespace PartsUnlimited.WebJobs.ProcessOrder
                 return 10;
             }
 
-            var jobHostConfig = new JobHostConfiguration(config["Data:AzureWebJobsStorage:ConnectionString"]);
-            var host = new JobHost(jobHostConfig);
-            var methodInfo = typeof(Functions).GetMethods().First();
+            //var jobHostConfig = new JobHostConfiguration(config["Data:AzureWebJobsStorage:ConnectionString"]);
+            //var host = new JobHost(null);// todo
+            //var methodInfo = typeof(Functions).GetMethods().First();
 
-            host.Call(methodInfo);
+            //host.Call(methodInfo);
             return 0;
         }
     }
