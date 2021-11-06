@@ -8,7 +8,9 @@ namespace PartsUnlimited.Models
 {
     public class PartsUnlimitedContext : IdentityDbContext<ApplicationUser>, IPartsUnlimitedContext
     {
-        public PartsUnlimitedContext(DbContextOptions dbContextOptions) : base(dbContextOptions) { }
+        public PartsUnlimitedContext(string connectionString) 
+            : base(Configure(connectionString))
+        { }
 
         public DbSet<Product> Products { get; set; }
         public DbSet<Order> Orders { get; set; }
@@ -31,14 +33,14 @@ namespace PartsUnlimited.Models
             base.OnModelCreating(builder);
         }
 
-        // todo: find a better place for this logic
-        public static DbContextOptionsBuilder Configure(DbContextOptionsBuilder options, string sqlConnectionString)
+        private static DbContextOptions Configure(string sqlConnectionString)
         {
-            if (!string.IsNullOrWhiteSpace(sqlConnectionString))
-                options.UseSqlServer(sqlConnectionString);
-            else
-                options.UseInMemoryDatabase("Test");
-            return options;
+            DbContextOptionsBuilder optionsBuilder = new();
+            return sqlConnectionString switch
+            {
+                _ when !string.IsNullOrWhiteSpace(sqlConnectionString) => optionsBuilder.UseSqlServer(sqlConnectionString).Options,
+                _ => optionsBuilder.UseInMemoryDatabase("Test").Options
+            };
         }
     }
 }
