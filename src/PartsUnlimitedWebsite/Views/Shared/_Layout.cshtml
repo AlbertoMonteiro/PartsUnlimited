@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="Icon" href="/images/favicon.ico" />
-    <title>@ViewBag.Title – Parts Unlimited</title>
-    @await Component.InvokeAsync("Configuration") 
+    <title>@ViewData["Title"] – Parts Unlimited</title>
+    @await Component.InvokeAsync("Configuration")
 
 </head>
 <body>

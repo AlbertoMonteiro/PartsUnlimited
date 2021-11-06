@@ -1,47 +1,183 @@
-﻿using System;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using PartsUnlimited;
+using PartsUnlimited.Areas.Admin;
 using PartsUnlimited.Models;
+using PartsUnlimited.Queries;
+using PartsUnlimited.Recommendations;
+using PartsUnlimited.Search;
+using PartsUnlimited.Security;
+using PartsUnlimited.Telemetry;
+using PartsUnlimited.WebsiteConfiguration;
 
-namespace PartsUnlimited
+var builder = WebApplication.CreateBuilder(args);
+builder.Host.ConfigureAppConfiguration((hostingContext, config) =>
 {
-    public class Program
-    {
-        public static void Main(string[] args)
+    config.Sources.Clear();
+    config.AddJsonFile("config.json", optional: true);
+});
+
+// Add services to the container.
+builder.Services.AddControllersWithViews();
+var Configuration = builder.Configuration;
+var services = builder.Services;
+var runningOnMono = Type.GetType("Mono.Runtime") != null;
+var sqlConnectionString = Configuration[ConfigurationPath.Combine("ConnectionStrings", "DefaultConnectionString")];
+var useInMemoryDatabase = string.IsNullOrWhiteSpace(sqlConnectionString);
+
+if (useInMemoryDatabase || runningOnMono)
+{
+    sqlConnectionString = "";
+}
+
+// Add EF services to the services container
+services.AddDbContext<PartsUnlimitedContext>(options => PartsUnlimitedContext.Configure(options, sqlConnectionString));
+services.AddScoped<IPartsUnlimitedContext, PartsUnlimitedContext>();
+
+// Add Identity services to the services container
+services.AddIdentity<ApplicationUser, IdentityRole>()
+    .AddEntityFrameworkStores<PartsUnlimitedContext>()
+    .AddDefaultTokenProviders();
+
+// Configure admin policies
+services.AddAuthorization(auth =>
+{
+    auth.AddPolicy(AdminConstants.Role,
+        authBuilder =>
         {
-            var host = BuildWebHost(args);
+            authBuilder.RequireClaim(AdminConstants.ManageStore.Name, AdminConstants.ManageStore.Allowed);
+        });
 
-            using (var scope = host.Services.CreateScope())
-            {
-                var services = scope.ServiceProvider;
+});
 
-                try
-                {
-                    //Populates the PartsUnlimited sample data
-                    SampleData.InitializePartsUnlimitedDatabaseAsync(services).Wait();
-                }
-                catch (Exception ex)
-                {
-                    var logger = services.GetRequiredService<ILogger<Program>>();
-                    logger.LogError(ex, "An error occurred seeding the DB.");
-                }
-            }
+// Add implementations
+services.AddSingleton<IMemoryCache, MemoryCache>();
+services.AddScoped<IOrdersQuery, OrdersQuery>();
+services.AddScoped<IRaincheckQuery, RaincheckQuery>();
 
-            host.Run();
-        }
+services.AddSingleton<ITelemetryProvider, EmptyTelemetryProvider>();
+services.AddScoped<IProductSearch, StringContainsProductSearch>();
 
-        public static IWebHost BuildWebHost(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
-                .UseStartup<Startup>()
-                .ConfigureAppConfiguration((hostContext, config) =>
-                {
-                    // delete all default configuration providers
-                    config.Sources.Clear();
-                    config.AddJsonFile("config.json", optional: true);
-                })
-                .Build();
+SetupRecommendationService(services);
+
+services.AddScoped<IWebsiteOptions>(p =>
+{
+    var telemetry = p.GetRequiredService<ITelemetryProvider>();
+
+    return new ConfigurationWebsiteOptions(Configuration.GetSection("WebsiteOptions"), telemetry);
+});
+
+services.AddScoped<IApplicationInsightsSettings>(p =>
+{
+    return new ConfigurationApplicationInsightsSettings(Configuration.GetSection(ConfigurationPath.Combine("Keys", "ApplicationInsights")));
+});
+
+services.AddApplicationInsightsTelemetry(Configuration);
+
+
+// We need access to these settings in a static extension method, so DI does not help us :(
+ContentDeliveryNetworkExtensions.Configuration = new ContentDeliveryNetworkConfiguration(Configuration.GetSection("CDN"));
+
+// Add MVC services to the services container
+services.AddMvc(o => o.EnableEndpointRouting = false);
+
+//Add InMemoryCache
+services.AddSingleton<IMemoryCache, MemoryCache>();
+
+// Add session related services.
+//services.AddCaching();
+services.AddSession();
+
+// antes e depois do build
+var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{
+    //var services = scope.ServiceProvider;
+
+    try
+    {
+        //Populates the PartsUnlimited sample data
+        SampleData.InitializePartsUnlimitedDatabaseAsync(scope.ServiceProvider).Wait();
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred seeding the DB.");
     }
 }
+
+// Configure Session.
+app.UseSession();
+
+// Add static files to the request pipeline
+app.UseStaticFiles();
+
+// Add cookie-based authentication to the request pipeline
+app.UseAuthentication();
+
+AppBuilderLoginProviderExtensions.AddLoginProviders(services, new ConfigurationLoginProviders(Configuration.GetSection("Authentication")));
+// Add login providers (Microsoft/AzureAD/Google/etc).  This must be done after `app.UseIdentity()`
+//app.AddLoginProviders( new ConfigurationLoginProviders(Configuration.GetSection("Authentication")));
+
+// Add MVC to the request pipeline
+app.UseMvc(routes =>
+{
+    routes.MapRoute(
+        name: "areaRoute",
+        template: "{area:exists}/{controller}/{action}",
+        defaults: new { action = "Index" });
+
+    routes.MapRoute(
+        name: "default",
+        template: "{controller}/{action}/{id?}",
+        defaults: new { controller = "Home", action = "Index" });
+
+    routes.MapRoute(
+        name: "api",
+        template: "{controller}/{id?}");
+});
+switch (app.Environment.EnvironmentName)
+{
+    case "Development":
+        app.UseDeveloperExceptionPage();
+        break;
+    case "Staging":
+        app.UseExceptionHandler("/Home/Error");
+        break;
+    case "Production":
+        app.UseExceptionHandler("/Home/Error");
+        break;
+}
+
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+
+app.UseRouting();
+
+app.UseAuthorization();
+
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
+app.Run();
+
+void SetupRecommendationService(IServiceCollection services)
+{
+    var azureMlConfig = new AzureMLFrequentlyBoughtTogetherConfig(Configuration.GetSection(ConfigurationPath.Combine("Keys", "AzureMLFrequentlyBoughtTogether")));
+
+    // If keys are not available for Azure ML recommendation service, register an empty recommendation engine
+    if (string.IsNullOrEmpty(azureMlConfig.AccountKey) || string.IsNullOrEmpty(azureMlConfig.ModelName))
+    {
+        services.AddSingleton<IRecommendationEngine, EmptyRecommendationsEngine>();
+    }
+    else
+    {
+        services.AddSingleton<IAzureMLAuthenticatedHttpClient, AzureMLAuthenticatedHttpClient>();
+        services.AddSingleton<IAzureMLFrequentlyBoughtTogetherConfig>(azureMlConfig);
+        services.AddScoped<IRecommendationEngine, AzureMLFrequentlyBoughtTogetherRecommendationEngine>();
+    }
+}
+
