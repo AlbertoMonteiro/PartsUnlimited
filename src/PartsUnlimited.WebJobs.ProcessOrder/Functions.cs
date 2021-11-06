@@ -4,6 +4,7 @@
 using System;
 using System.Linq;
 using Microsoft.Azure.WebJobs;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
 using Microsoft.WindowsAzure.Storage.Queue;
@@ -26,47 +27,46 @@ namespace PartsUnlimited.WebJobs.ProcessOrder
                 var config = builder.Build();
                 var connectionString = config["Data:DefaultConnection:ConnectionString"];
 
-                using (var context = new PartsUnlimitedContext(connectionString))
+                var dbOptionsBuilder = PartsUnlimitedContext.Configure(new DbContextOptionsBuilder(), connectionString);
+                using var context = new PartsUnlimitedContext(dbOptionsBuilder.Options);
+                var orders = context.Orders.Where(x => !x.Processed).ToList();
+                Console.WriteLine("Found {0} orders to process", orders.Count);
+
+                foreach (var order in orders)
                 {
-                    var orders = context.Orders.Where(x => !x.Processed).ToList();
-                    Console.WriteLine("Found {0} orders to process", orders.Count);
+                    var productIds = context.OrderDetails.Where(x => x.OrderId == order.OrderId).Select(x => x.ProductId).ToList();
+                    var items = context.Products
+                        .Where(x => productIds.Contains(x.ProductId))
+                        .ToList();
 
-                    foreach (var order in orders)
+                    var orderItems = items.Select(
+                            x => new LegacyOrderItem
+                            {
+                                SkuNumber = x.SkuNumber,
+                                Price = x.Price
+                            }).ToList();
+
+                    var queueOrder = new LegacyOrder
                     {
-                        var productIds = context.OrderDetails.Where(x => x.OrderId == order.OrderId).Select(x => x.ProductId).ToList();
-                        var items = context.Products
-                            .Where(x => productIds.Contains(x.ProductId))
-                            .ToList();
-
-                        var orderItems = items.Select(
-                                x => new LegacyOrderItem
-                                {
-                                    SkuNumber = x.SkuNumber,
-                                    Price = x.Price
-                                }).ToList();
-
-                        var queueOrder = new LegacyOrder
-                        {
-                            Address = order.Address,
-                            Country = order.Country,
-                            City = order.City,
-                            Phone = order.Phone,
-                            CustomerName = order.Name,
-                            OrderDate = order.OrderDate,
-                            PostalCode = order.PostalCode,
-                            State = order.State,
-                            TotalCost = order.Total,
-                            Discount = order.Total,
-                            Items = orderItems
-                        };
-                        var settings = new JsonSerializerSettings { ContractResolver = new CamelCasePropertyNamesContractResolver() };
-                        var message = JsonConvert.SerializeObject(queueOrder, settings);
-                        orderQueue.AddMessageAsync(new CloudQueueMessage(message));
-                        order.Processed = true;
-                    }
-                    context.SaveChanges();
-                    Console.WriteLine("Orders successfully processed.");
+                        Address = order.Address,
+                        Country = order.Country,
+                        City = order.City,
+                        Phone = order.Phone,
+                        CustomerName = order.Name,
+                        OrderDate = order.OrderDate,
+                        PostalCode = order.PostalCode,
+                        State = order.State,
+                        TotalCost = order.Total,
+                        Discount = order.Total,
+                        Items = orderItems
+                    };
+                    var settings = new JsonSerializerSettings { ContractResolver = new CamelCasePropertyNamesContractResolver() };
+                    var message = JsonConvert.SerializeObject(queueOrder, settings);
+                    orderQueue.AddMessageAsync(new CloudQueueMessage(message));
+                    order.Processed = true;
                 }
+                context.SaveChanges();
+                Console.WriteLine("Orders successfully processed.");
             }
             catch (Exception e)
             {

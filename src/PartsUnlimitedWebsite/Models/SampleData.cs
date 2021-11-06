@@ -12,7 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-
+using IHostingEnvironment = Microsoft.AspNetCore.Hosting.IHostingEnvironment;
 
 namespace PartsUnlimited.Models
 {
@@ -93,8 +93,7 @@ namespace PartsUnlimited.Models
         /// <returns></returns>
         private static IConfigurationSection GetAdminRoleConfiguration(IServiceProvider serviceProvider)
         {
-            var appEnv = serviceProvider.GetService<IHostingEnvironment>();
-
+            var appEnv = serviceProvider.GetService<IWebHostEnvironment>();
             var builder = new ConfigurationBuilder().SetBasePath(appEnv.ContentRootPath)
                         .AddJsonFile("config.json")
                         .AddEnvironmentVariables();

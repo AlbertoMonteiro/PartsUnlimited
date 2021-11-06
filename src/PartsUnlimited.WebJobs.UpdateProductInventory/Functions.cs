@@ -21,21 +21,20 @@ namespace PartsUnlimited.WebJobs.UpdateProductInventory
             var config = builder.Build();
             var connectionString = config["Data:DefaultConnection:ConnectionString"];
 
-            using (var context = new PartsUnlimitedContext(connectionString))
+            var dbOptionsBuilder = PartsUnlimitedContext.Configure(new DbContextOptionsBuilder(), connectionString);
+            using var context = new PartsUnlimitedContext(dbOptionsBuilder.Options);
+            var dbProductList = await context.Products.ToListAsync();
+            foreach (var queueProduct in message.ProductList)
             {
-                var dbProductList = await context.Products.ToListAsync();
-                foreach (var queueProduct in message.ProductList)
-                {
-                    var dbProduct = dbProductList.SingleOrDefault(x => x.SkuNumber == queueProduct.SkuNumber);
+                var dbProduct = dbProductList.SingleOrDefault(x => x.SkuNumber == queueProduct.SkuNumber);
 
-                    if (dbProduct != null)
-                    {
-                        dbProduct.Inventory = queueProduct.Inventory;
-                        dbProduct.LeadTime = queueProduct.LeadTime;
-                    }
+                if (dbProduct != null)
+                {
+                    dbProduct.Inventory = queueProduct.Inventory;
+                    dbProduct.LeadTime = queueProduct.LeadTime;
                 }
-                await context.SaveChangesAsync(CancellationToken.None);
             }
+            await context.SaveChangesAsync(CancellationToken.None);
         }
     }
 }

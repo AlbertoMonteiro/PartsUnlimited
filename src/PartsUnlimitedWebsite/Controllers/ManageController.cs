@@ -40,14 +40,16 @@ namespace PartsUnlimited.Controllers
                 : "";
 
             var user = await GetCurrentUserAsync();
-            var model = new IndexViewModel
-            {
-                HasPassword = await UserManager.HasPasswordAsync(user),
-                PhoneNumber = await UserManager.GetPhoneNumberAsync(user),
-                TwoFactor = await UserManager.GetTwoFactorEnabledAsync(user),
-                Logins = await UserManager.GetLoginsAsync(user),
-                BrowserRemembered = await SignInManager.IsTwoFactorClientRememberedAsync(user)
-            };
+            var model = new IndexViewModel();
+            if (user is not null)
+                model = model with
+                {
+                    HasPassword = await UserManager.HasPasswordAsync(user),
+                    PhoneNumber = await UserManager.GetPhoneNumberAsync(user),
+                    TwoFactor = await UserManager.GetTwoFactorEnabledAsync(user),
+                    Logins = await UserManager.GetLoginsAsync(user),
+                    BrowserRemembered = await SignInManager.IsTwoFactorClientRememberedAsync(user)
+                };
 
             return View(model);
         }

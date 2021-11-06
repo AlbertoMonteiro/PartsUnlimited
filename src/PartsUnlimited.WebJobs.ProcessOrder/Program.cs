@@ -10,7 +10,7 @@ namespace PartsUnlimited.WebJobs.ProcessOrder
 {
     public class Program
     {
-        public async Task<int> Main(string[] args)
+        public int Main()
         {
             var builder = new ConfigurationBuilder();
             builder.Add(new JsonConfigurationSource { Path = "config.json" });
