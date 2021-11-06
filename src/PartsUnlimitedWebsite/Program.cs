@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using PartsUnlimited;
 using PartsUnlimited.Areas.Admin;
@@ -16,6 +15,7 @@ builder.Host.ConfigureAppConfiguration((hostingContext, config) =>
 {
     config.Sources.Clear();
     config.AddJsonFile("config.json", optional: true);
+    config.AddJsonFile($"config.{hostingContext.HostingEnvironment.EnvironmentName}.json", optional: true);
 });
 
 // Add services to the container.
@@ -32,8 +32,8 @@ if (useInMemoryDatabase || runningOnMono)
 }
 
 // Add EF services to the services container
-services.AddDbContext<PartsUnlimitedContext>(options => PartsUnlimitedContext.Configure(options, sqlConnectionString));
-services.AddScoped<IPartsUnlimitedContext, PartsUnlimitedContext>();
+services.AddScoped<PartsUnlimitedContext>(_ => new PartsUnlimitedContext(sqlConnectionString));
+services.AddScoped<IPartsUnlimitedContext>(sp => sp.GetRequiredService<PartsUnlimitedContext>());
 
 // Add Identity services to the services container
 services.AddIdentity<ApplicationUser, IdentityRole>()
@@ -137,18 +137,11 @@ app.UseMvc(routes =>
         name: "api",
         template: "{controller}/{id?}");
 });
-switch (app.Environment.EnvironmentName)
+_ = app.Environment.EnvironmentName switch
 {
-    case "Development":
-        app.UseDeveloperExceptionPage();
-        break;
-    case "Staging":
-        app.UseExceptionHandler("/Home/Error");
-        break;
-    case "Production":
-        app.UseExceptionHandler("/Home/Error");
-        break;
-}
+    "Development" => app.UseDeveloperExceptionPage(),
+    _ => app.UseExceptionHandler("/Home/Error"),
+};
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
@@ -156,7 +149,6 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthorization();
-
 
 app.MapControllerRoute(
     name: "default",

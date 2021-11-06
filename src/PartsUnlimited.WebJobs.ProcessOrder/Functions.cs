@@ -27,8 +27,7 @@ namespace PartsUnlimited.WebJobs.ProcessOrder
                 var config = builder.Build();
                 var connectionString = config["Data:DefaultConnection:ConnectionString"];
 
-                var dbOptionsBuilder = PartsUnlimitedContext.Configure(new DbContextOptionsBuilder(), connectionString);
-                using var context = new PartsUnlimitedContext(dbOptionsBuilder.Options);
+                using var context = new PartsUnlimitedContext(connectionString);
                 var orders = context.Orders.Where(x => !x.Processed).ToList();
                 Console.WriteLine("Found {0} orders to process", orders.Count);
 
